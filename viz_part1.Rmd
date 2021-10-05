@@ -4,3 +4,143 @@ author: "Fang Liu"
 date: "10/5/2021"
 output: github_document
 ---
+
+```{r set_up}
+library(tidyverse)
+library(ggridges)
+```
+
+load in a dataset that we'll use often 
+```{r load_data}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USC00519397", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USC00519397 = "Waikiki_HA",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+
+weather_df
+```
+
+## Scatterplot 
+tmax vs. tmin
+```{r create_scatter}
+weather_df %>%
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point()
+```
+You can save ggplots
+```{r save_plot}
+ggp_tmax_tmin = weather_df %>%
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point()
+
+ggp_tmax_tmin
+```
+
+## Fancier plots!
+Add... colors/lines/extra stuff.
+```{r fancy_mapping}
+weather_df %>%
+  ggplot(aes(x = tmin, y = tmax, color = name)) +
+  geom_point(alpha = 0.3) + 
+  geom_smooth(se = FALSE) +  #added in 3 different lines
+  facet_grid(. ~ name) #i don't want to separate out the rows
+
+#use color = NULL to "get rid" of a aesthetic setting??
+#in ggplot: use aesthetic "globally" 
+#in geom_point(): local changes/only apply to the points
+```
+
+Let's make one more scatter plot.
+```{r temp_and_prec}
+weather_df %>%
+  ggplot(aes(x = date, y = tmax, size = prcp)) +
+  geom_point(alpha = .3) +
+  facet_grid(. ~ name) + 
+  geom_smooth(se = FALSE)
+```
+
+## use data manipulation as part of this
+You can do data manipulation before creating your plots 
+```{r data_manipulation}
+weather_df %>%
+  filter(name == "CentralPark_NY") %>%
+  mutate(
+    tmax = tmax * (9/5) + 32,
+    tmin = tmin * (9/5) + 32
+  ) %>% 
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_point()
+```
+
+## Stacking geoms
+
+Which geoms do you want?
+
+```{r without_using_points}
+weather_df %>%
+  ggplot(aes(x = date, y = tmax, color = name)) +
+  geom_smooth()
+```
+
+```{r hex_plot}
+weather_df %>%
+  ggplot(aes(x = tmax, y = tmin)) +
+  geom_hex()
+```
+
+## Univariate plots 
+
+Looking at the distribution of a single variable.
+#### Histograms
+```{r histogram}
+weather_df %>%
+  ggplot(aes(x = tmax, fill = name)) +
+  geom_histogram() + 
+  facet_grid(. ~ name)
+  
+#ggplot invented before pipes were invented
+```
+
+#### Density plots
+```{r density}
+weather_df %>%
+  ggplot(aes(x = tmax, fill = name)) +
+  geom_density(alpha = 0.3)
+```
+
+#### Box plots
+```{r boxplot}
+weather_df %>%
+  ggplot(aes(x = name, y = tmax)) + 
+  geom_boxplot()
+```
+
+#### violin plots
+```{r violin}
+weather_df %>%
+  ggplot(aes(x = name, y = tmax)) + 
+  geom_violin()
+```
+
+What about ridges? Good for looking at the shape of distributions 
+```{r ridge}
+#Note: library(ggridges) is needed 
+weather_df %>%
+  ggplot(aes(x = tmax, y = name)) + 
+  geom_density_ridges(scale = .85, alpha = 0.8)
+
+```
+
+
+
