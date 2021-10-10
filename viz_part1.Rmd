@@ -4,8 +4,11 @@ author: "Fang Liu"
 date: "10/5/2021"
 output: github_document
 ---
-
-```{r set_up}
+Embedding plots in an R Markdown document can also take a while to get used because there are several things to adjust.
+* Size of the figure **created** by R is controlled using two of the three chunk options `fig.width`, `fig.height`, and `fig.asp` 
+* plots that are a little wider than they are tall: set options to fig.width = 6 and fig.asp = .6. 
+* Second is the size of the figure **inserted** into your document, which is controlled using `out.width` or `out.height` (padding around the sides of figures -> set out.width = "90%")
+```{r set_up, message = FALSE}
 library(tidyverse)
 library(ggridges)
 
@@ -17,7 +20,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-load in a dataset that we'll use often 
+load in a data set that we'll use often.We’ll be working with **NOAA weather** data, which is downloaded using `rnoaa::meteo_pull_monitors` function:
 ```{r load_data}
 weather_df = 
   rnoaa::meteo_pull_monitors(
@@ -34,19 +37,12 @@ weather_df =
     tmin = tmin / 10,
     tmax = tmax / 10) %>%
   select(name, id, everything())
-
-weather_df
 ```
 
 ## Scatterplot 
 tmax vs. tmin
-```{r create_scatter}
-weather_df %>%
-  ggplot(aes(x = tmin, y = tmax)) +
-  geom_point()
-```
-You can save ggplots
-```{r save_plot}
+
+```{r scatter_plot, message=FALSE}
 ggp_tmax_tmin = weather_df %>%
   ggplot(aes(x = tmin, y = tmax)) +
   geom_point()
@@ -56,12 +52,12 @@ ggp_tmax_tmin
 
 ## Fancier plots!
 Add... colors/lines/extra stuff.
-```{r fancy_mapping}
+```{r fancy_mapping, warning=FALSE}
 weather_df %>%
   ggplot(aes(x = tmin, y = tmax, color = name)) +
   geom_point(alpha = 0.3) + 
   geom_smooth(se = FALSE) +  #added in 3 different lines
-  facet_grid(. ~ name) #i don't want to separate out the rows
+  facet_grid(. ~ name) #i don't want to separate out the rows but want to separate columns using name
 
 #use color = NULL to "get rid" of a aesthetic setting??
 #in ggplot: use aesthetic "globally" 
@@ -71,14 +67,13 @@ weather_df %>%
 Let's make one more scatter plot.
 ```{r temp_and_prec}
 weather_df %>%
-  ggplot(aes(x = date, y = tmax, size = prcp)) +
-  geom_point(alpha = .3) +
+  ggplot(aes(x = date, y = tmax, color = name)) +
+  geom_point(alpha = .3, aes(size = prcp)) +
   facet_grid(. ~ name) + 
   geom_smooth(se = FALSE)
 ```
 
-## use data manipulation as part of this
-You can do data manipulation before creating your plots 
+### Learning Assessment: Write a code chain that starts with weather_df; focuses only on Central Park, converts temperatures to Fahrenheit, makes a scatterplot of min vs. max temperature, and overlays a linear regression line (using options in geom_smooth()).
 ```{r data_manipulation}
 weather_df %>%
   filter(name == "CentralPark_NY") %>%
@@ -87,28 +82,32 @@ weather_df %>%
     tmin = tmin * (9/5) + 32
   ) %>% 
   ggplot(aes(x = tmin, y = tmax)) +
-  geom_point()
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
 ```
 
 ## Stacking geoms
 
 Which geoms do you want?
 
-```{r without_using_points}
+```{r without_using_points, message=FALSE}
 weather_df %>%
   ggplot(aes(x = date, y = tmax, color = name)) +
   geom_smooth()
 ```
 
-```{r hex_plot}
+```{r hex_plot, message = FALSE}
 weather_df %>%
   ggplot(aes(x = tmax, y = tmin)) +
   geom_hex()
+
+#Note: shape only applies to points
 ```
 
 ## Univariate plots 
 
 Looking at the distribution of a single variable.
+
 #### Histograms
 ```{r histogram}
 weather_df %>%
@@ -116,14 +115,15 @@ weather_df %>%
   geom_histogram() + 
   facet_grid(. ~ name)
   
-#ggplot invented before pipes were invented
+#ggplot invented before pipes were invented so we have to use pluses (+) rather than %>% pipes
 ```
 
 #### Density plots
 ```{r density}
 weather_df %>%
   ggplot(aes(x = tmax, fill = name)) +
-  geom_density(alpha = 0.3)
+  geom_density(alpha = 0.3, color = "blue") +
+  geom_rug() #shows the raw data?
 ```
 
 #### Box plots
@@ -135,32 +135,47 @@ weather_df %>%
 
 #### violin plots
 ```{r violin}
-weather_df %>%
-  ggplot(aes(x = name, y = tmax)) + 
-  geom_violin()
+ggplot(weather_df, aes(x = name, y = tmax)) + 
+  geom_violin(aes(fill = name), alpha = .5) + 
+  stat_summary(fun = "median", color = "blue")
 ```
 
-What about ridges? Good for looking at the shape of distributions 
+#### Ridge plots
+Ridge plots were the *trendiest* plot of 2017, and were a replacement for both boxplots and violin plots. 
+* They’re implemented in the `ggridges` package
+* good when there is a lot of categories in which the shape of the distribution matters
 ```{r ridge}
 #Note: library(ggridges) is needed 
 weather_df %>%
   ggplot(aes(x = tmax, y = name)) + 
   geom_density_ridges(scale = .85, alpha = 0.8)
+```
 
+
+### Learning Assessment: Make plots that compare precipitation across locations. 
+```{r}
+#density
+ggplot(weather_df, aes(x = prcp)) + 
+  geom_density(aes(fill = name), alpha = .5) 
+
+#ridge
+ggplot(weather_df, aes(x = prcp, y = name)) + 
+  geom_density_ridges(scale = .85)
+
+#boxplot
+ggplot(weather_df, aes(y = prcp, x = name)) + 
+  geom_boxplot() 
+
+weather_df %>% 
+  filter(prcp > 0) %>% 
+  ggplot(aes(x = prcp, y = name)) + 
+  geom_density_ridges(scale = .85)
 ```
 
 ## Embedding plots
-
 ```{r fig.width = 6, fig.height = 5}
-weather_df %>%
-  ggplot(aes(x = tmin, y = tmax, color = name)) +
-  geom_point(alpha = 0.3)
+weather_plot = ggplot(weather_df, aes(x = tmin, y = tmax)) + 
+  geom_point(aes(color = name), alpha = .5) 
+
+ggsave("weather_plot.pdf", weather_plot, width = 8, height = 5)
 ```
-
-```{r fig.width = 12, fig.height = 5}
-weather_df %>%
-  ggplot(aes(x = tmin, y = tmax, color = name)) +
-  geom_point(alpha = 0.3)
-```
-
-
