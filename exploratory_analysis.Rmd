@@ -48,4 +48,138 @@ weather_df =
 #lubricate() package is helpful when dealing with dates
 ```
 
+### `group_by`
+```{r}
+weather_df %>% 
+  group_by(name, month)
+```
+
+## count some things
+```{r}
+x =
+  weather_df %>% 
+  group_by(name, month) %>%
+  summarize(n_obs = n())
+
+x
+```
+
+'table' does NOT produce a data frame!!! Not really useful
+```{r use_table}
+weather_df %>% 
+  pull(name) %>% 
+  table()
+```
+
+Or we can also use `tabyl()` to produce results that are data.frames and thus can be formatted!!
+```{r tabyl}
+x2 = 
+  weather_df %>% 
+  janitor::tabyl(month, name)
+x2
+```
+
+## General summaries 
+
+Let's count, take means, st. deviations, etc
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(
+    n_obs = n(),
+    mean_tmax = mean(tmax, na.rm = TRUE),
+    median_tmax = median(tmax, na.rm = TRUE),
+    sd_max = sd(tmax, na.rm = TRUE)
+  )
+#or we can use drop.na() in the pipe
+```
+
+## Formatting table outputs
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(
+    n_obs = n(),
+    mean_tmax = mean(tmax, na.rm = TRUE)
+  ) %>% 
+  knitr::kable(digits =2)
+```
+
+## group `mutate`
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  mutate(
+    mean_tmax = mean(tmax, na.rm = TRUE), #mean_tmax is the 'group-wise mean' 
+    centered_tmax = tmax - mean_tmax
+  ) %>% 
+ggplot(aes(x = date, y = centered_tmax, color = name)) +
+  geom_point()
+#add column specific values
+```
+
+#### Window functions
+Window functions take n inputs and return n outputs, and the outputs depend on ALL the inputs!
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  mutate(
+    tmax_rank = min_rank(desc(tmax)) #the `desc` ranks tmax in descending order
+  ) %>% 
+  filter(tmax_rank < 2)
+```
+
+**Lagged variables**  
+Offsets are used to compare an observation to it’s previous value. This is useful to find the day-by-day change in max temperature within each station over the year:
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  mutate(
+    lagged_tmax = lag(tmax, n = 1), #what is the lag information I have one day before (i.e., Yesterday)
+    tmax_diff = tmax - lagged_tmax
+  ) %>% 
+  summarize(diff_sd = sd(tmax_diff, na.rm = TRUE)) #st.deviation of the daily difference
+```
+
+## Limitations
+What if my "summary" is a linear model... well... it doesn't work! 
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(cor_tmin_tmax= cor(tmin, tmax, use = "complete"))
+
+weather_df %>% 
+  filter(name == "CentralPark_NY") %>% 
+  lm(tmax ~ tmin, data = .)
+
+#WRONG EXAMPLE
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(lm = lm(tmax - tmin))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
